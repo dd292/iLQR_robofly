@@ -57,7 +57,19 @@ class TrajectoryVisualize():
         #plt.legend(('X_velocity', 'Y_velocity', 'Z_velocity', 'True_x_vel', 'True_y_vel', 'True_z_vel'))
         #plt.ylim(top=1, bottom=-1)
 
+    def plot_input(self, fig, axs, u0, u1, u2):
+        X = np.linspace(0, u0.shape[0] / 100, u0.shape[0])
+        axs[0].plot(X, self.map_controls(u0, 50, 200), 'b')# map 50 to 200
+        axs[1].plot(X, self.map_controls(u1, -20, 20), 'g')# map -20 to 20
+        axs[2].plot(X, self.map_controls(u2, -30, 30), 'k')# map -30 to 30
 
+        axs[0].legend('thrust')
+        axs[1].legend('torque_x')
+        axs[2].legend('torque_y')
+    def map_controls(self, input, min_bounds, max_bounds):
+        diff = (max_bounds - min_bounds) / 2.0
+        mean = (max_bounds + min_bounds) / 2.0
+        return diff * np.tanh(input) + mean
 
     def plotter(self, dict):
         for key,value in dict.items():
@@ -70,6 +82,8 @@ class TrajectoryVisualize():
                 self.plot_vel(fig, axs, value[:,0],value[:,1],value[:,2],value[:,3],value[:,4],value[:,5])
             elif key == 'omega':
                 self.plot_omegas(fig, axs, value[:,0],value[:,1],value[:,2],value[:,3],value[:,4],value[:,5])
+            elif key == 'input':
+                self.plot_input(fig, axs, value[:, 0], value[:, 1], value[:, 2])
             self.figure_number+=1
 
     def show_plot(self):

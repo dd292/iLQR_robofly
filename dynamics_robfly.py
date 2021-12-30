@@ -8,7 +8,7 @@ import numpy as np
 
 class RoboflyDynamics(BatchAutoDiffDynamics):
 
-    def __init__(self, dt, reps, **kwargs):
+    def __init__(self, dt, reps, actuator,  **kwargs):
 
         def dx(x, u, time_step):
             # state= [theta0, theta1, theta2, omega0, omega1, omega2,-
@@ -60,26 +60,32 @@ class RoboflyDynamics(BatchAutoDiffDynamics):
             Kp1 = 1.38e-6
             Ks0 = 1.07e-6
             Ks1 = 2.55e-7
-            Ks2 = 1.07e-6
+
             J0 = 4.5e-9
             J1 = 3.24e-9
             J2 = 2.86e-9
             neg_b_w0 = -2.5e-3
             neg_b_w4 = -0.5e-3
             neg_b_w8 = -0.8e-3
-
+            bias = 220
             # map input
-            maxt = 1.1276
-            mint = 0.83
-            max_torque_roll = 18.98e-6  # +-30V
-            max_torque_pitch = -9.91e-6  # +-15v
-            # max_action =\
-            #     np.array([max_f_l, max_torque_roll, max_torque_pitch])
-            # action = tensor_constrain(action, np.asarray([0,-1,-1]), np.asarray([0,1,1]))
-            # action = action * max_action  # self.scale_ctrl(action, self.min_action, self.max_action)
-            u0 = (tensor_constrain(u0, 0, 1) * (maxt - mint) + mint) * m * g
-            u1 = tensor_constrain(u1, -1, 1) * max_torque_roll
-            u2 = tensor_constrain(u2, -1, 1) * max_torque_pitch
+            if actuator:
+                #squash constraints for actuator
+                u0 = tensor_constrain(u0, 50, 200)  # map 50 to 200
+                u1 = tensor_constrain(u1, -20, 20)  # map -20 to 20
+                u2 = tensor_constrain(u2, -30, 30)  # map -30 to 30
+                u0 = ((2 * u0) * 1.086 - 2 * 110.31 ) * 1e-6 * g
+                u1 = (u1 * 0.94) * 1e-6
+                u2 = (u2 * 0.33) * 1e-6
+            else:
+                maxt = 1.1276
+                mint = 0.83
+                max_torque_roll = 18.98e-6  # +-30V
+                max_torque_pitch = -9.91e-6  # +-15v
+                u0 = (tensor_constrain(u0, 0, 1) * (maxt - mint) + mint) * m * g
+                u1 = tensor_constrain(u1, -1, 1) * max_torque_roll
+                u2 = tensor_constrain(u2, -1, 1) * max_torque_pitch
+
             s0 = T.sin(theta0)
             s1 = T.sin(theta1)
             s2 = T.sin(theta2)
