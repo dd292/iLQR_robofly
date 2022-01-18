@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from ilqr import iLQR
+from ilqr.controller_tessa import iLQR
 from ilqr.cost import QRCost
 #from dynamics_robfly import RoboflyDynamics
 from dynamics_robfly import RoboflyDynamics
@@ -20,21 +20,22 @@ def hover(boxQP):
     reps = 5
     dt = 0.01
     dynamics = RoboflyDynamics(dt, reps, boxQP, actuator = True)
-    x_goal = np.asarray([0, 0, 0, 0, 0, 0, 0, 0.1, 0.5, 0, 0, 0])
+    x_goal = np.asarray([0, 0, 0, 0, 0, 0, 0.2, 0.1, 0.5, 0, 0, 0])
     Q= np.eye(dynamics.state_size)
-    Q[6,6] = 0
-    Q[7,7] = 1e2
-    Q[8,8] = 1e3
+    Q[6,6] = 1e1
+    Q[7,7] = 1e1
+    Q[8,8] = 1e1
     Q_terminal = 100 * np.eye(dynamics.state_size)
+    #Q_terminal[8,8] = 1e4
     R = 0.001 * np.eye(dynamics.action_size)
-    R[0,0] = 1e-3
+    R[0,0] = 1e-5
     cost = QRCost(Q, R, Q_terminal=Q_terminal, x_goal=x_goal)
     return dynamics, cost
 
 def act_const_hover(box_QP):
     reps = 5
     dt = 0.01
-    dynamics = RoboflyDynamics(dt, reps, box_QP, actuator=True)
+    dynamics = RoboflyDynamics(dt, reps, box_QP, actuator = True)
 
     x_goal = np.asarray([0, 0, 0, 0, 0, 0, 0.2, 0.1, 0.5, 0, 0, 0])
 
@@ -71,18 +72,24 @@ dynamics, cost = hover(box_QP)
 N = 400 # trajectory length
 
 #define initials
-x0 = np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+x0 = np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).reshape((12,1))
 np.random.seed(1234)
-u0_init = 125 * np.ones((N,1)) # * np.random.uniform(0, 1, (N, 1))
-u1_init = 0 * np.random.uniform(-1, 1, (N, 2))
-us_init = np.concatenate((u0_init, u1_init), axis=1)
-ub = [200, 20, 30]
-lb = [50, -20, -30]
-ilqr = iLQR(dynamics, cost, ub, lb, N)
+u0_init = 100 * np.ones((1,N)) # * np.random.uniform(0, 1, (N, 1))
+u1_init = 0 * np.random.uniform(-1, 1, (2, N))
+us_init = np.concatenate((u0_init, u1_init), axis=0)
+if box_QP:
+    ub = np.array([200, 45, 45]).reshape((3,1))
+    lb = np.array([100, -45, -45]).reshape((3,1))
+    limits = np.concatenate((lb,ub),axis=1)
+else:
+    limits= None# np.concatenate((lb,ub),axis=1)
+ilqr = iLQR(dynamics, cost)
 J_hist = []
 start= time.time()
-xs, us = ilqr.fit(x0, us_init, n_iterations=200, on_iteration=on_iteration, box_qp = box_QP)
+xs, us, cost = ilqr.fit(x0, us_init, limits)
 print(time.time()-start)
+xs= xs.transpose()
+us= us.transpose()
 
 
 #plotting
@@ -96,4 +103,3 @@ plot_stuff['input'] = us
 visualize.plotter(plot_stuff,box_QP)
 visualize.show_plot()
 
-xnew, unew, costnew = self.forward_pass(x0, u, L, x[:,0:N], l, self.Op['Alpha'], self.Op['lims'])

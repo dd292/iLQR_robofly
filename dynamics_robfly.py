@@ -8,7 +8,7 @@ import numpy as np
 
 class RoboflyDynamics(BatchAutoDiffDynamics):
 
-    def __init__(self, dt, reps, actuator,  **kwargs):
+    def __init__(self, dt, reps, box_QP, actuator,  **kwargs):
 
         def dx(x, u, time_step):
             # state= [theta0, theta1, theta2, omega0, omega1, omega2,-
@@ -70,11 +70,13 @@ class RoboflyDynamics(BatchAutoDiffDynamics):
             bias = 220
             # map input
             if actuator:
-                #squash constraints for actuator
-                u0 = tensor_constrain(u0, 50, 200)  # map 50 to 200
-                u1 = tensor_constrain(u1, -20, 20)  # map -20 to 20
-                u2 = tensor_constrain(u2, -30, 30)  # map -30 to 30
-                u0 = ((2 * u0) * 1.086 - 2 * 110.31 ) * 1e-6 * g
+                if not box_QP:
+                    #squash constraints for actuator
+                    u0 = tensor_constrain(u0, 50, 200)  # map 50 to 200
+                    u1 = tensor_constrain(u1, -20, 20)  # map -20 to 20
+                    u2 = tensor_constrain(u2, -30, 30)  # map -30 to 30
+                #u0 = ((2 * u0) * 1.086 - 2 * 110.31 ) * 1e-6 * g
+                u0 = u0 * 1e-6 *g
                 u1 = (u1 * 0.94) * 1e-6
                 u2 = (u2 * 0.33) * 1e-6
             else:

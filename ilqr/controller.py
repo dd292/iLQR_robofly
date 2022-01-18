@@ -18,8 +18,8 @@ import six
 import abc
 import warnings
 import numpy as np
-
-
+from BoxQP_theano import boxQP
+import box_copies
 
 @six.add_metaclass(abc.ABCMeta)
 class BaseController():
@@ -47,7 +47,7 @@ class iLQR(BaseController):
 
     """Finite Horizon Iterative Linear Quadratic Regulator."""
 
-    def __init__(self, dynamics, cost, N, max_reg=1e10, hessians=False):
+    def __init__(self, dynamics, cost, ub, lb, N, max_reg=1e10, hessians=False):
         """Constructs an iLQR solver.
 
         Args:
@@ -77,10 +77,12 @@ class iLQR(BaseController):
 
         self._k = np.zeros((N, dynamics.action_size))
         self._K = np.zeros((N, dynamics.action_size, dynamics.state_size))
-
+        self.ub = ub
+        self.lb = lb
+        self.boxQP = boxQP(dynamics.action_size)
         super(iLQR, self).__init__()
 
-    def fit(self, x0, us_init, n_iterations=100, tol=1e-6, on_iteration=None):
+    def fit(self, x0, us_init ,n_iterations=100, tol=1e-6, on_iteration=None, box_qp = False):
         """Computes the optimal controls.
 
         Args:
@@ -129,10 +131,20 @@ class iLQR(BaseController):
                 changed = False
 
             try:
-                # Backward pass.
-                k, K = self._backward_pass(F_x, F_u, L_x, L_u, L_xx, L_ux, L_uu,
-                                           F_xx, F_ux, F_uu)
-
+                backPassDone = 0
+                while not backPassDone:
+                    # Backward pass.
+                    diverge, k, K = self._backward_pass(us, F_x, F_u, L_x, L_u, L_xx, L_ux, L_uu,
+                                           F_xx, F_ux, F_uu, box_qp)
+                    if diverge:
+                        self._delta = max(1.0, self._delta) * self._delta_0
+                        self._mu = max(self._mu_min, self._mu * self._delta)
+                        if self._mu_max and self._mu >= self._mu_max:
+                            print("box QP max reg term")
+                            warnings.warn("exceeded max regularization term")
+                            break
+                    backPassDone=1
+                print(backPassDone)
                 # Backtracking line search.
                 for alpha in alphas:
                     xs_new, us_new = self._control(xs, us, k, K, alpha)
@@ -309,6 +321,7 @@ class iLQR(BaseController):
         return xs, F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu, F_xx, F_ux, F_uu
 
     def _backward_pass(self,
+                       us,
                        F_x,
                        F_u,
                        L_x,
@@ -318,7 +331,9 @@ class iLQR(BaseController):
                        L_uu,
                        F_xx=None,
                        F_ux=None,
-                       F_uu=None):
+                       F_uu=None,
+                       box_qp = False
+                       ):
         """Computes the feedforward and feedback gains k and K.
 
         Args:
@@ -347,8 +362,8 @@ class iLQR(BaseController):
         V_xx = L_xx[-1]
 
         k = np.empty_like(self._k)
-        K = np.empty_like(self._K)
-
+        K = np.zeros_like(self._K)
+        diverge = 0
         for i in range(self.N - 1, -1, -1):
             if self._use_hessians:
                 Q_x, Q_u, Q_xx, Q_ux, Q_uu = self._Q(F_x[i], F_u[i], L_x[i],
@@ -360,11 +375,27 @@ class iLQR(BaseController):
                                                      L_u[i], L_xx[i], L_ux[i],
                                                      L_uu[i], V_x, V_xx)
 
-            # Eq (6).
-            k[i] = -np.linalg.solve(Q_uu, Q_u)
-            K[i] = -np.linalg.solve(Q_uu, Q_ux)
 
-            # Eq (11b).
+            if box_qp:
+                lb = self.lb - us[i, :]
+                ub = self.ub - us[i, :]
+                #k[i], Q_uuf, free = self.boxQP.solve(Q_uu, Q_u, lb, ub, k[np.minimum(i+1, self.N-2), :])
+                k[i], result, Q_uuf, free = box_copies.boxQP(Q_uu, Q_u, lb, ub, k[np.minimum(i + 1, self.N - 2), :])
+                if result < 1:
+                    diverge = i
+                    #print("result<1, diverge at", i, " error: ", result)
+                    return diverge, np.array(k), np.array(K)
+                if np.any(free):
+                    Lfree = np.linalg.solve(-Q_uuf, np.linalg.solve(Q_uuf.T, Q_ux[free, :]))
+                    K[i, free, :] = Lfree
+                #if len(free) != 0 :
+                #    K[i, free,:]  = - Q_uuf @ Q_ux [free, :]
+            else:
+                # Eq (6).
+                k[i] = -np.linalg.solve(Q_uu, Q_u)
+                K[i] = -np.linalg.solve(Q_uu, Q_ux)
+
+            #Eq (11b).
             V_x = Q_x + K[i].T.dot(Q_uu).dot(k[i])
             V_x += K[i].T.dot(Q_u) + Q_ux.T.dot(k[i])
 
@@ -373,7 +404,7 @@ class iLQR(BaseController):
             V_xx += K[i].T.dot(Q_ux) + Q_ux.T.dot(K[i])
             V_xx = 0.5 * (V_xx + V_xx.T)  # To maintain symmetry.
 
-        return np.array(k), np.array(K)
+        return diverge, np.array(k), np.array(K)
 
     def _Q(self,
            f_x,
