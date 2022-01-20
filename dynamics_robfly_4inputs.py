@@ -30,6 +30,7 @@ class RoboflyDynamics(BatchAutoDiffDynamics):
             u0 = u[..., 0]
             u1 = u[..., 1]
             u2 = u[..., 2]
+
             # action = action.reshape((3,1))
             # print(action.TensorType)
             # angle wrap-around
@@ -67,7 +68,8 @@ class RoboflyDynamics(BatchAutoDiffDynamics):
             neg_b_w0 = -2.5e-3
             neg_b_w4 = -0.5e-3
             neg_b_w8 = -0.8e-3
-            bias = 220
+            bias = 180
+            u0 = u0 - T.abs_(u1) - T.abs_(u2)
             # map input
             if actuator:
                 if not box_QP:
@@ -76,7 +78,7 @@ class RoboflyDynamics(BatchAutoDiffDynamics):
                     u1 = tensor_constrain(u1, -20, 20)  # map -20 to 20
                     u2 = tensor_constrain(u2, -30, 30)  # map -30 to 30
                 #u0 = ((2 * u0) * 1.086 - 2 * 110.31 ) * 1e-6 * g
-                u0 = u0 * 1e-6 * g
+                u0 = u0 * 1e-6 *g
                 u1 = (u1 * 0.94) * 1e-6
                 u2 = (u2 * 0.33) * 1e-6
             else:

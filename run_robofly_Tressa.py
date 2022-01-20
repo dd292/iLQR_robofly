@@ -26,7 +26,7 @@ def hover(boxQP):
     Q[7,7] = 1e1
     Q[8,8] = 1e1
     Q_terminal = 100 * np.eye(dynamics.state_size)
-    #Q_terminal[8,8] = 1e4
+    #Q_terminal[8,8] = 1e-
     R = 0.001 * np.eye(dynamics.action_size)
     R[0,0] = 1e-5
     cost = QRCost(Q, R, Q_terminal=Q_terminal, x_goal=x_goal)
@@ -74,12 +74,12 @@ N = 400 # trajectory length
 #define initials
 x0 = np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).reshape((12,1))
 np.random.seed(1234)
-u0_init = 100 * np.ones((1,N)) # * np.random.uniform(0, 1, (N, 1))
+u0_init = 180 * np.ones((1,N)) # * np.random.uniform(0, 1, (N, 1))
 u1_init = 0 * np.random.uniform(-1, 1, (2, N))
 us_init = np.concatenate((u0_init, u1_init), axis=0)
 if box_QP:
-    ub = np.array([200, 45, 45]).reshape((3,1))
-    lb = np.array([100, -45, -45]).reshape((3,1))
+    ub = np.array([200, 20, 30]).reshape((3,1))
+    lb = np.array([50, -20, -30]).reshape((3,1))
     limits = np.concatenate((lb,ub),axis=1)
 else:
     limits= None# np.concatenate((lb,ub),axis=1)

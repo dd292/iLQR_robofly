@@ -128,8 +128,7 @@ class iLQR(BaseController):
               'regType':        1,                           # regularization type 1: q_uu+lambda*eye(); 2: V_xx+lambda*eye()
               'zMin':           0,                           # minimal accepted reduction ratio
               'print':          2,                           # 0: no;  1: final; 2: iter; 3: iter, detailed
-              'cost':           None}                       # initial cost for pre-rolled trajectory
-
+              'cost':           None}                        # initial cost for pre-rolled trajectory
         self.dynamics = dynamics
         self.cost_class = cost_class
 
