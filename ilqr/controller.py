@@ -18,7 +18,7 @@ import six
 import abc
 import warnings
 import numpy as np
-from BoxQP_theano import boxQP
+
 import box_copies
 
 @six.add_metaclass(abc.ABCMeta)

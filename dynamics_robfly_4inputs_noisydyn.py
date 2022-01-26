@@ -1,3 +1,4 @@
+
 import theano.tensor as T
 import theano
 import theano.ifelse as ifelse
@@ -8,7 +9,35 @@ import numpy as np
 
 class RoboflyDynamics(BatchAutoDiffDynamics):
 
-    def __init__(self, dt, reps, box_QP, actuator, **kwargs):
+    def __init__(self, dt, reps, box_QP, actuator, noise, **kwargs):
+        gamma = 0
+        v_w = 0
+        del_m = 0
+        del_moi = 0
+        for key, val in noise.items():
+            if key == "thrust_noise":
+                gamma= val
+            elif key == "wind_noise":
+                v_w= val
+            elif key == "mass":
+                del_m = val
+            elif key == "moi":
+                del_moi = val
+        def make_rot(angle):
+            # Rotation matrix and omega 2theta dot matrix calc
+            s0 = T.sin(angle[0])
+            s1 = T.sin(angle[1])
+            s2 = T.sin(angle[2])
+            c0 = T.cos(angle[0])
+            c1 = T.cos(angle[1])
+            c2 = T.cos(angle[2])
+
+
+            # matrix elements
+            R =np.array([[ c2 * c1,  c2 * s1 * s0 - c0 * s2, s2 * s0 + c2 * c0 * s1],
+                         [c1 * s2, c2 * c0 + s2 * s1 * s0,  c0 * s2 * s1 - c2 * s0],
+                         [-s1, c1 * s0, c1 * c0]])
+            return R
 
         def dx(x, u, time_step):
             # state= [theta0, theta1, theta2, omega0, omega1, omega2,-
@@ -125,11 +154,15 @@ class RoboflyDynamics(BatchAutoDiffDynamics):
             fd0 = neg_b_w0 / m * v_w0
             fd1 = neg_b_w4 / m * v_w1
             fd2 = neg_b_w8 / m * v_w2
-
+            # Input Thrust
+            # if there's delta noise in the thrust vector
+            delta_rotation = make_rot(np.tile(gamma,3))
+            vector_world = delta_rotation @ np.array([0,0, u0])
+            vector_world = vector_world/m
             #delta_accelerations
-            F9 = - R2 * g + fd0 - omega1 * bdot_z + omega2 * bdot_y
-            F10 = - R5 * g + fd1 - omega2 * bdot_x + omega0 * bdot_z
-            F11 = u0 / m - R8 * g + fd2 - omega0 * bdot_y + omega1 * bdot_x
+            F9 = - R2 * g + fd0 - omega1 * bdot_z + omega2 * bdot_y + vector_world[0]
+            F10 = - R5 * g + fd1 - omega2 * bdot_x + omega0 * bdot_z + vector_world[1]
+            F11 = - R8 * g + fd2 - omega0 * bdot_y + omega1 * bdot_x + vector_world[2]
 
             F6 = R0 * bdot_x + R1 * bdot_y + R2 * bdot_z
             F7 = R3 * bdot_x + R4 * bdot_y + R5 * bdot_z

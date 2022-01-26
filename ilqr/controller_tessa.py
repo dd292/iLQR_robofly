@@ -113,13 +113,13 @@ class iLQR(BaseController):
     def __init__(self,dynamics, cost_class):
         # ---------------------- user-adjustable parameters ------------------------
         self.Op = {'lims':           None,                        # control limits
-              'parallel':       False,                        # use parallel line-search?
+              'parallel':       True,                        # use parallel line-search?
               # 'Alpha':          10**np.linspace(0,-3,11),    # backtracking coefficients
               #'Alpha':          5*10**np.linspace(1,-3,21),  # backtracking coefficients
-              'Alpha': 1.1**(-np.arange(10)**2),  # backtracking coefficients
+             'Alpha': 1.1**(-np.arange(10)**2),  # backtracking coefficients
               'tolFun':         1e-7,                        # reduction exit criterion
               'tolGrad':        1e-4,                        # gradient exit criterion
-              'maxIter':        100,                        # maximum iterations
+              'maxIter':        20,                        # maximum iterations
               'lambda':         1,                           # initial value for lambda
               'dlambda':        1,                           # initial value for dlambda
               'lambdaFactor':   1.6,                         # lambda scaling factor
@@ -433,12 +433,16 @@ class iLQR(BaseController):
 
             if lims is not None:# start with None
                 unew[i,:,:] = np.clip(unew[i,:,:], lims[:,0][:,None], lims[:,1][:,None])
-            for k in range(K):
-                xnew[i + 1, :, k] = self.dynamics.f(xnew[i,:,k], unew[i,:,k], i)  # DYNCST(x,u), x dim = [n, K], u dim = [m, K]
-                cnew[i, k] = self.cost_class.l(xnew[i,:,k], unew[i,:,k], i, terminal=False)
+            # for k in range(K):
+            #     xnew[i + 1, :, k] = self.dynamics.f(xnew[i,:,k], unew[i,:,k], i)  # DYNCST(x,u), x dim = [n, K], u dim = [m, K]
+            #     cnew[i, k] = self.cost_class.l(xnew[i,:,k], unew[i,:,k], i, terminal=False)
+            #
+            xnew[i + 1, :, :] = self.dynamics.f(xnew[i, :, :], unew[i, :, :], i)  # DYNCST(x,u), x dim = [n, K], u dim = [m, K]
+            cnew[i, :] = self.cost_class.l(xnew[i, :, :], unew[i, :, :], i, terminal=False)
 
-        for k in range(K):
-            cnew[N,k] = self.cost_class.l(xnew[N,:,k], None, N, terminal=True)
+        # for k in range(K):
+        #     cnew[N,k] = self.cost_class.l(xnew[N,:,k], None, N, terminal=True)
+        cnew[N, :] = self.cost_class.l(xnew[N, :, :], None, N, terminal=True)
 
         # put the time dimension in the columns
         xnew = np.transpose(xnew, (2,1,0))  # dim = [K, n, N+1]

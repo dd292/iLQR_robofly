@@ -19,15 +19,15 @@ def on_iteration(iteration_count, xs, us, J_opt, accepted, converged):
 def hover(boxQP):
     reps = 5
     dt = 0.01
-    dynamics = RoboflyDynamics(dt, reps, boxQP, actuator = True)
+    dynamics = RoboflyDynamics(dt, reps, boxQP, True)
     x_goal = np.asarray([0, 0, 0, 0, 0, 0, 0.2, 0.1, 0.5, 0, 0, 0])
     Q= np.eye(dynamics.state_size)
-    Q[6,6] = 1e1
-    Q[7,7] = 1e1
-    Q[8,8] = 1e1
-    Q_terminal = 100 * np.eye(dynamics.state_size)
+    Q[6,6] = 10
+    Q[7,7] = 10
+    Q[8,8] = 10
+    Q_terminal = 400 * np.eye(dynamics.state_size)
     #Q_terminal[8,8] = 1e4
-    R = 0.001 * np.eye(dynamics.action_size)
+    R = 0.0001 * np.eye(dynamics.action_size)
     R[0,0] = 1e-5
     cost = QRCost(Q, R, Q_terminal=Q_terminal, x_goal=x_goal)
     return dynamics, cost
@@ -77,7 +77,7 @@ np.random.seed(1234)
 u0_init = 100 * np.ones((1,N)) # * np.random.uniform(0, 1, (N, 1))
 u1_init = 0 * np.random.uniform(-1, 1, (2, N))
 us_init = np.concatenate((u0_init, u1_init), axis=0)
-bias = 150
+bias = 200
 if box_QP:
     ub = np.array([bias, 20, 30]).reshape((3,1))
     lb = np.array([50, -20, -30]).reshape((3,1))
@@ -91,8 +91,8 @@ xs, us, cost = ilqr.fit(x0, us_init, limits)
 print(time.time()-start)
 xs= xs.transpose()
 us= us.transpose()
-
-
+np.save("results/states.npy", xs)
+np.save("results/controls.npy", us)
 #plotting
 plot_stuff = {}
 visualize = TrajectoryVisualize()
