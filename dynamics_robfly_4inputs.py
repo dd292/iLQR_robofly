@@ -1,9 +1,13 @@
+import time
+
 import theano.tensor as T
 import theano
 import theano.ifelse as ifelse
-from ilqr.dynamics import AutoDiffDynamics
-from ilqr.dynamics import BatchAutoDiffDynamics, tensor_constrain
+from ilqr.dynamics_parallel import AutoDiffDynamics
+#from ilqr.dynamics import BatchAutoDiffDynamics, tensor_constrain
+from ilqr.dynamics_parallel import BatchAutoDiffDynamics, tensor_constrain
 import numpy as np
+import time
 
 
 class RoboflyDynamics(BatchAutoDiffDynamics):
@@ -166,3 +170,38 @@ class RoboflyDynamics(BatchAutoDiffDynamics):
         super(RoboflyDynamics, self).__init__(f, state_size=12,
                                               action_size=3,
                                               **kwargs)
+
+
+# test batched dynamcis
+
+def test_bacth_dyn():
+    dt = 0.01
+    reps = 5
+    boxQP = False
+    dynamics = RoboflyDynamics(dt, reps, boxQP, True)
+    x = np.zeros((10,12))
+    u = np.zeros((10,3))
+    start = time.time()
+    s = dynamics.f(x, u, 0)
+    print(time.time() - start)
+    print(s.shape)
+    return s
+if __name__ == '__main__':
+    an = test_bacth_dyn()
+    #print(an)
+    # x = T.dvector("x")
+    # u = T.dvector("u")
+    # i = T.dscalar("i")
+    # inputs = [x, u, i]
+    #
+    #     x_rep_1 = T.tile(x, (1, 1))
+    #     u_rep_1 = T.tile(u, (1, 1))
+    #     i_rep_1 = T.tile(i, (1, 1))
+    #     self._tensor = f(x_rep_1, u_rep_1, i_rep_1)
+    #     self._f = as_function(self._tensor, inputs, name="f", **kwargs)
+    #
+    #     self._J_x, self._J_u, _ = batch_jacobian(f, inputs, state_size)
+    #     self._f_x = as_function(self._J_x, inputs, name="f_x", **kwargs)
+    #     self._f_u = as_function(self._J_u, inputs, name="f_u", **kwargs)
+    #
+    #     super(BatchAutoDiffDynamics, self).__init__()

@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from ilqr.controller_tessa import iLQR
+from ilqr.controller_tessa_parallel import iLQR
 from ilqr.cost import QRCost
 #from dynamics_robfly import RoboflyDynamics
 from dynamics_robfly import RoboflyDynamics

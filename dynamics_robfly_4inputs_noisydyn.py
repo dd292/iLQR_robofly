@@ -2,8 +2,8 @@
 import theano.tensor as T
 import theano
 import theano.ifelse as ifelse
-from ilqr.dynamics import AutoDiffDynamics
-from ilqr.dynamics import BatchAutoDiffDynamics, tensor_constrain
+from ilqr.dynamics_parallel import AutoDiffDynamics
+from ilqr.dynamics_parallel import BatchAutoDiffDynamics, tensor_constrain
 import numpy as np
 
 

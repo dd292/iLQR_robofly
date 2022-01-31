@@ -113,12 +113,12 @@ class iLQR(BaseController):
     def __init__(self,dynamics, cost_class):
         # ---------------------- user-adjustable parameters ------------------------
         self.Op = {'lims':           None,                        # control limits
-              'parallel':       False,                        # use parallel line-search?
+              'parallel':       True,                        # use parallel line-search?
               # 'Alpha':          10**np.linspace(0,-3,11),    # backtracking coefficients
               #'Alpha':          5*10**np.linspace(1,-3,21),  # backtracking coefficients
-              'Alpha': 1.1**(-np.arange(10)**2),  # backtracking coefficients
-              'tolFun':         1e-7,                        # reduction exit criterion
-              'tolGrad':        1e-4,                        # gradient exit criterion
+             'Alpha': 1.1**(-np.arange(10)**2),  # backtracking coefficients
+              'tolFun':         1e-2,#1e-7,                        # reduction exit criterion
+              'tolGrad':        1e-2,#1e-4,                        # gradient exit criterion
               'maxIter':        10,                        # maximum iterations
               'lambda':         1,                           # initial value for lambda
               'dlambda':        1,                           # initial value for dlambda
@@ -127,7 +127,7 @@ class iLQR(BaseController):
               'lambdaMin':      1e-6,                        # below this value lambda = 0
               'regType':        1,                           # regularization type 1: q_uu+lambda*eye(); 2: V_xx+lambda*eye()
               'zMin':           0,                           # minimal accepted reduction ratio
-              'print':          1,                           # 0: no;  1: final; 2: iter; 3: iter, detailed
+              'print':          0,                           # 0: no;  1: final; 2: iter; 3: iter, detailed
               'cost':           None}                        # initial cost for pre-rolled trajectory
         self.dynamics = dynamics
         self.cost_class = cost_class
@@ -433,12 +433,17 @@ class iLQR(BaseController):
 
             if lims is not None:# start with None
                 unew[i,:,:] = np.clip(unew[i,:,:], lims[:,0][:,None], lims[:,1][:,None])
-            for k in range(K):
-                xnew[i + 1, :, k] = self.dynamics.f(xnew[i,:,k], unew[i,:,k], i)  # DYNCST(x,u), x dim = [n, K], u dim = [m, K]
-                cnew[i, k] = self.cost_class.l(xnew[i,:,k], unew[i,:,k], i, terminal=False)
+            # for k in range(K):
+            #     xnew[i + 1, :, k] = self.dynamics.f(xnew[i,:,k], unew[i,:,k], i)  # DYNCST(x,u), x dim = [n, K], u dim = [m, K]
+            #     cnew[i, k] = self.cost_class.l(xnew[i,:,k], unew[i,:,k], i, terminal=False)
+            input_x = xnew[i, :, :].transpose()
+            input_u = unew[i, :, :].transpose()
+            xnew[i + 1, :, :] = self.dynamics.f(input_x, input_u, i).transpose()  # DYNCST(x,u), x dim = [n, K], u dim = [m, K]
+            cnew[i, :] = self.cost_class.l(input_x, input_u, i, terminal=False)
 
-        for k in range(K):
-            cnew[N,k] = self.cost_class.l(xnew[N,:,k], None, N, terminal=True)
+        # for k in range(K):
+        #     cnew[N,k] = self.cost_class.l(xnew[N,:,k], None, N, terminal=True)
+        cnew[N, :] = self.cost_class.l(xnew[N, :, :].transpose(), None, N, terminal=True)
 
         # put the time dimension in the columns
         xnew = np.transpose(xnew, (2,1,0))  # dim = [K, n, N+1]
@@ -537,8 +542,8 @@ class iLQR(BaseController):
         state x0 by applying the control path us.
 
         Args:
-            xs: trajectory path [N+1, state_size].
-            us: Control path [N, action_size].
+            xs: trajectory path [state_size, N+1].
+            us: Control path [action_size, N+1].
 
         Returns:
             Tuple of:
@@ -589,8 +594,8 @@ class iLQR(BaseController):
 
 
         for i in range(N):
-            x = xs[:,i]
-            u = us[:,i]
+            x = xs[:,i].reshape((1,state_size))
+            u = us[:,i].reshape((1,action_size))
 
 
             F_x[i] = self.dynamics.f_x(x, u, i)
@@ -604,7 +609,7 @@ class iLQR(BaseController):
             L_uu[i] = self.cost_class.l_uu(x, u, i, terminal=False)
 
 
-        x = xs[:,-1]
+        x = xs[:,-1].reshape((1,state_size))
         L_x[-1] = self.cost_class.l_x(x, None, N, terminal=True)
         L_xx[-1] = self.cost_class.l_xx(x, None, N, terminal=True)
 
